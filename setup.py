@@ -5,7 +5,7 @@ setup(
     name='HTSDataMining',
     version='1.0',
     packages=['HTSDataMining'],
-    install_requires=[],
+    install_requires=['numpy', 'pandas', 'scipy'],
     url='https://github.com/ArnaudKOPP/HTSDataMining',
     license='GNU GPL V2.0',
     author='Arnaud KOPP',

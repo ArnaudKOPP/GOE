@@ -22,7 +22,7 @@ def adjustpvalues(pvalues, method='fdr', n=None):
     p.adjust method in R.
 
     :param pvalues: numeric vector of p-values (possibly with 'NA's).
-    :param method: correction method. Valid values are: : fdr, bonferroni, holm, hochberg, BH or BY
+    :param method: correction method. Valid values are: : fdr(BH), bonferroni, holm, hochberg, BY
     :param n: number of comparisons, must be at least 'length(p)'; only set
     this (to non-default) when you know what you are doing
     """

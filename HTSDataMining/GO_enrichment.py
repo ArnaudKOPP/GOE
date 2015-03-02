@@ -216,7 +216,7 @@ class GOtree(object):
         load obo file into obo reader
         :param obo_file:
         """
-        log.info("Load obo file ", obo_file)
+        log.info("Load obo file {}".format(obo_file))
         obo_reader = OBOreader(obo_file)
         for rec in obo_reader:
             self.go_Term[rec.id] = rec
@@ -224,7 +224,7 @@ class GOtree(object):
                 self.go_Term[alt] = rec
 
         self.populate_terms()
-        log.info("All GO nodes imported : ", len(self.go_Term))
+        log.info("All GO nodes imported : {}".format(len(self.go_Term)))
 
     def populate_terms(self):
         """
@@ -351,16 +351,11 @@ class Association(object):
     def _load_association_file(self, file):
         log.info("Load association file")
         try:
-            assoc = pd.read_csv(file)
+            assoc = pd.read_csv(file, engine='c')
             assoc = assoc.dropna(axis=0)
             self._make_association(assoc)
-        except:
-            try:
-                assoc = pd.read_csv(file, sep=',')
-                assoc = assoc.dropna(axis=0)
-                self._make_association(assoc)
-            except Exception as e:
-                print(e)
+        except Exception as e:
+            log.error(e)
 
     def _make_association(self, assoc_data_frame):
         log.info("Making association ...")
