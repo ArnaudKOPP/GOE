@@ -23,7 +23,8 @@ def go():
     enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/TEMP/study.txt",
                                                pop="/home/arnaud/Desktop/TEMP/pop.txt",
                                                assoc="/home/arnaud/Desktop/TEMP/assoc.csv",
-                                               compare=False)
+                                               compare=False,
+                                               namespace_filter=None)
     result = enrichment.to_dataframe()
     print(pd.DataFrame(result).head())
 

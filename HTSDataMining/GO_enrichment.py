@@ -417,7 +417,7 @@ class EnrichmentStudy(object):
     assoc file is csv format
     """
 
-    def __init__(self, study, pop, assoc, compare=False):
+    def __init__(self, study, pop, assoc, compare=False, namespace_filter=None):
         self.alpha = 0.05
         self.pval = 0.05
         self.compare = compare
@@ -434,8 +434,14 @@ class EnrichmentStudy(object):
         self.go_tree = GOtree()
         self.go_tree.update_association(self.association)
 
-        self.term_study = self.count_terms(self.study, self.association, self.go_tree)
-        self.term_pop = self.count_terms(self.pop, self.association, self.go_tree)
+        if namespace_filter is not None:
+            if namespace_filter not in ['molecular_function', 'biological_process', 'cellular_component']:
+                namespace_filter = None
+
+        self.term_study = self.count_terms(self.study, self.association, self.go_tree,
+                                           namespace_filter=namespace_filter)
+        self.term_pop = self.count_terms(self.pop, self.association, self.go_tree,
+                                         namespace_filter=namespace_filter)
 
         self.pop_n, self.study_n = len(self.pop), len(self.study)
 
@@ -517,19 +523,24 @@ class EnrichmentStudy(object):
         return study, pop
 
     @staticmethod
-    def count_terms(geneset, assoc, go_tree):
+    def count_terms(geneset, assoc, go_tree, namespace_filter=None):
         """
         count the number of terms in the study group
         :param geneset:
         :param assoc:
         :param go_tree:
+        :param namespace_filter: if want to filter by namespace
         """
         term_cnt = collections.defaultdict(int)
         for gene in geneset:
             try:
                 for x in assoc.association[int(gene)]:
                     if x in go_tree.go_Term:
-                        term_cnt[go_tree.go_Term[x].id] += 1
+                        if namespace_filter is not None:
+                            if go_tree.go_Term[x].namespace == filter:
+                                term_cnt[go_tree.go_Term[x].id] += 1
+                        else:
+                            term_cnt[go_tree.go_Term[x].id] += 1
             except:
                 continue
         return term_cnt
