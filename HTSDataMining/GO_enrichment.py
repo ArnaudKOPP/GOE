@@ -330,6 +330,12 @@ class GOtree(object):
         if bad_terms:
             print("terms not found: ", bad_terms)
 
+    def __str__(self):
+        return repr(self.go_Term)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class Association(object):
     """
@@ -372,6 +378,12 @@ class Association(object):
         """
         return self.association[term]
 
+    def __str__(self):
+        return repr(self.association)
+
+    def __repr__(self):
+        return self.__str__()
+
 
 class GOEnrichmentRecord(object):
     """
@@ -406,7 +418,7 @@ class GOEnrichmentRecord(object):
         """
         if self.id in go.go_Term:
             self.goterm = go.go_Term[self.id]
-            self.description = self.goterm.name
+            self.description = "{0} [{1}]".format(self.goterm.name, self.goterm.namespace)
 
 
 class EnrichmentStudy(object):
@@ -418,16 +430,7 @@ class EnrichmentStudy(object):
     """
 
     def __init__(self, study, pop, assoc, compare=False, namespace_filter=None):
-        self.alpha = 0.05
-        self.pval = 0.05
         self.compare = compare
-        self.ration = 1
-        self.indent = True
-        self.min_ratio = self.ration
-        if self.min_ratio is not None:
-            assert 1 <= self.min_ratio <= 2
-        assert 0 < self.alpha < 1, "Test-wise alpha must fall between (0, 1)"
-
         self.results = []
         self.study, self.pop = self.read_geneset(study, pop, compare=self.compare)
         self.association = Association(assoc)
@@ -442,7 +445,6 @@ class EnrichmentStudy(object):
                                            namespace_filter=namespace_filter)
         self.term_pop = self.count_terms(self.pop, self.association, self.go_tree,
                                          namespace_filter=namespace_filter)
-
         self.pop_n, self.study_n = len(self.pop), len(self.study)
 
         self.run()
@@ -534,7 +536,7 @@ class EnrichmentStudy(object):
         term_cnt = collections.defaultdict(int)
         for gene in geneset:
             try:
-                for x in assoc.association[int(gene)]:
+                for x in assoc.association[gene]:
                     if x in go_tree.go_Term:
                         if namespace_filter is not None:
                             if go_tree.go_Term[x].namespace == filter:

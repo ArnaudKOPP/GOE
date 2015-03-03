@@ -20,12 +20,14 @@ def go():
     """
     Go Enrichment testing
     """
-    enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/TEMP/study.txt",
-                                               pop="/home/arnaud/Desktop/TEMP/pop.txt",
-                                               assoc="/home/arnaud/Desktop/TEMP/assoc.csv",
+    enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/HDV/union_study_poc.txt",
+                                               pop="/home/arnaud/Desktop/HDV/union_pop.txt",
+                                               assoc="/home/arnaud/Desktop/asso_gene_genome_goid.csv",
                                                compare=False,
                                                namespace_filter=None)
     result = enrichment.to_dataframe()
-    print(pd.DataFrame(result).head())
+    df = pd.DataFrame(result)
+    print(df.head())
+    df.to_csv(path_or_buf='/home/arnaud/Desktop/HDV/union_GO.csv', index=False)
 
 go()
