@@ -366,9 +366,8 @@ class Association(object):
     def _make_association(self, assoc_data_frame):
         log.info("Making association ...")
         datagp = assoc_data_frame.groupby('id')
-        for gene in assoc_data_frame.id.unique():
-            go = datagp.get_group(gene)['go_id']
-            self.association[gene] = set(go)
+        for name, group in datagp:
+            self.association[name] = set(group['go_id'].values)
 
     def query(self, term):
         """
