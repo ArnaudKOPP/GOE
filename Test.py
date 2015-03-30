@@ -16,18 +16,15 @@ np.set_printoptions(linewidth=300)
 np.set_printoptions(suppress=True, precision=4)
 
 
-def go():
-    """
-    Go Enrichment testing
-    """
-    enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/HDV/union_study_poc.txt",
-                                               pop="/home/arnaud/Desktop/HDV/union_pop.txt",
-                                               assoc="/home/arnaud/Desktop/asso_gene_genome_goid.csv",
-                                               compare=False,
-                                               namespace_filter=None)
-    result = enrichment.to_dataframe()
-    df = pd.DataFrame(result)
-    print(df.head())
-    df.to_csv(path_or_buf='/home/arnaud/Desktop/HDV/union_GO.csv', index=False)
-
-go()
+"""
+Go Enrichment testing
+"""
+enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/HDV/GO_enrichement/union_study_poc.txt",
+                                           pop="/home/arnaud/Desktop/HDV/GO_enrichement/union_pop.txt",
+                                           assoc="/home/arnaud/Desktop/asso_gene_genome_goid.csv",
+                                           compare=False,
+                                           namespace_filter=None)
+result = enrichment.to_dataframe()
+df = pd.DataFrame(result)
+print(df.head())
+df.to_csv(path_or_buf='/home/arnaud/Desktop/HDV/GO_enrichement/union_GO.csv', index=False)
