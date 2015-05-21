@@ -9,9 +9,10 @@ __credits__ = ["KOPP Arnaud"]
 __license__ = "GNU GPL V2.0"
 __maintainer__ = "Arnaud KOPP"
 __email__ = "kopp.arnaud@gmail.com"
-__status__ = "Dev"
+__status__ = "Production"
 
 import collections
+import sys
 import numpy as np
 import scipy.stats
 import pandas as pd
@@ -19,6 +20,7 @@ import urllib.request
 from HTSDataMining.utils import reporthook
 from HTSDataMining.stat import adjustpvalues
 import logging
+
 log = logging.getLogger(__name__)
 
 typedef_tag, term_tag = "[Typedef]", "[Term]"
@@ -28,13 +30,14 @@ class OBOreader(object):
     """
     Parse obo file
     """
+
     def __init__(self, obo_file="go.obo"):
         try:
             self._handle = open(obo_file)
         except IOError:
             log.info("Download ontologies")
             urllib.request.urlretrieve(
-                "http://www.berkeleybop.org/ontologies/go/go.obo", "go.obo", reporthook)
+                "http://geneontology.org/ontology/go.obo", "go.obo", reporthook)
             print('')  # add this for begin @ new line (it's ugly)
             self._handle = open(obo_file)
 
@@ -123,12 +126,14 @@ class GOTerm(object):
         self.parents = []  # parent records
         self.children = []  # children records
         self.level = -1  # distance from root node
+        self.depth = None  # longest distance from root node
         self.is_obsolete = False  # is_obsolete
         self.alt_ids = []  # alternative identifiers
 
     def __str__(self):
         obsolete = "obsolete" if self.is_obsolete else ""
-        return "%s\tlevel-%02d\t%s [%s] %s" % (self.id, self.level, self.name, self.namespace, obsolete)
+        return "%s\tlevel-%02d\tdepth-%02d\t%s [%s] %s" % (self.id, self.level, self.depth,
+                                                           self.name, self.namespace, obsolete)
 
     def __repr__(self):
         return "GOTerm('%s')" % self.id
@@ -199,6 +204,43 @@ class GOTerm(object):
             all_child_edges |= p.get_all_child_edges()
         return all_child_edges
 
+    def write_hier_rec(self, gos_printed, out=sys.stdout,
+                       len_dash=1, max_depth=None, num_child=None, short_prt=False,
+                       include_only=None, go_marks=None,
+                       depth=1, dp="-"):
+        """Write hierarchy for a GO Term record."""
+        GO_id = self.id
+        # Shortens hierarchy report by only printing the hierarchy
+        # for the sub-set of user-specified GO terms which are connected.
+        if include_only is not None and GO_id not in include_only:
+            return
+        nrp = short_prt and GO_id in gos_printed
+        if go_marks is not None:
+            out.write('{} '.format('>' if GO_id in go_marks else ' '))
+        if len_dash is not None:
+            # Default character indicating hierarchy level is '-'.
+            # '=' is used to indicate a hierarchical path printed in detail previously.
+            letter = '-' if not nrp or not self.children else '='
+            dp = ''.join([letter] * depth)
+            out.write('{DASHES:{N}} '.format(DASHES=dp, N=len_dash))
+        if num_child is not None:
+            out.write('{N:>5} '.format(N=len(self.get_all_children())))
+        out.write('{GO}\tL-{L:>02}\tD-{D:>02}\t{desc}\n'.format(
+            GO=self.id, L=self.level, D=self.depth, desc=self.name))
+        # Track GOs previously printed only if needed
+        if short_prt:
+            gos_printed.add(GO_id)
+        # Do not print hierarchy below this turn if it has already been printed
+        if nrp:
+            return
+        depth += 1
+        if max_depth is not None and depth > max_depth:
+            return
+        for p in self.children:
+            p.write_hier_rec(gos_printed, out, len_dash, max_depth, num_child, short_prt,
+                             include_only, go_marks,
+                             depth, dp)
+
 
 class GOtree(object):
     """
@@ -231,7 +273,7 @@ class GOtree(object):
         :return:
         """
 
-        def depth(rec):
+        def __init_level(rec):
             """
 
             :param rec:
@@ -241,8 +283,16 @@ class GOtree(object):
                 if not rec.parents:
                     rec.level = 0
                 else:
-                    rec.level = min(depth(rec) for rec in rec.parents) + 1
+                    rec.level = min(__init_level(rec) for rec in rec.parents) + 1
             return rec.level
+
+        def _init_depth(rec):
+            if rec.depth is None:
+                if not rec.parents:
+                    rec.depth = 0
+                else:
+                    rec.depth = max(_init_depth(rec) for rec in rec.parents) + 1
+            return rec.depth
 
         # make the parents references to the GO terms
         for rec in self.go_Term.items():
@@ -256,14 +306,70 @@ class GOtree(object):
                 p.children.append(rec)
 
             if rec.level < 0:
-                depth(rec)
+                __init_level(rec)
 
-    def print_all_go_id(self):
+            if rec.depth is None:
+                _init_depth(rec)
+
+    def write_dag(self, out=sys.stdout):
         """
-        Print all go ID
+        Write info for all GO Terms in obo file, sorted numerically.
         """
         for rec_id, rec in sorted(self.go_Term.items()):
-            print(rec)
+            print(rec, file=out)
+
+    def write_hier_all(self, out=sys.stdout,
+                       len_dash=1, max_depth=None, num_child=None, short_prt=False):
+        """Write hierarchy for all GO Terms in obo file."""
+        # Print: [biological_process, molecular_function, and cellular_component]
+        for go_id in ['GO:0008150', 'GO:0003674', 'GO:0005575']:
+            self.write_hier(go_id, out, len_dash, max_depth, num_child, short_prt, None)
+
+    def write_hier(self, GO_id, out=sys.stdout,
+                   len_dash=1, max_depth=None, num_child=None, short_prt=False,
+                   include_only=None, go_marks=None):
+        """Write hierarchy for a GO Term."""
+        gos_printed = set()
+        self.go_Term[GO_id].write_hier_rec(gos_printed, out, len_dash, max_depth, num_child,
+                                           short_prt, include_only, go_marks)
+
+    def write_summary_cnts(self, GO_ids, out=sys.stdout):
+        """Write summary of level and depth counts for specific GO ids."""
+        cnts = self.get_cnts_levels_depths_recs([self.go_Term[GO] for GO in GO_ids])
+        self._write_summary_cnts(cnts, out)
+
+    def write_summary_cnts_all(self, out=sys.stdout):
+        """Write summary of level and depth counts for all active GO Terms."""
+        cnts = self.get_cnts_levels_depths_recs(set(self.go_Term.values()))
+        self._write_summary_cnts(cnts, out)
+
+    def _write_summary_cnts(self, cnts, out=sys.stdout):
+        """Write summary of level and depth counts for active GO Terms."""
+        # Count level(shortest path to root) and depth(longest path to root)
+        # values for all unique GO Terms.
+        max_val = max(max(dep for dep in cnts['depth']),
+                      max(lev for lev in cnts['level']))
+        nss = ['biological_process', 'molecular_function', 'cellular_component']
+        out.write('Dep <-Depth Counts->  <-Level Counts->\n')
+        out.write('Lev   BP    MF    CC    BP    MF    CC\n')
+        out.write('--- ----  ----  ----  ----  ----  ----\n')
+        for i in range(max_val + 1):
+            vals = ['{:>5}'.format(cnts[desc][i][ns]) for desc in cnts for ns in nss]
+            out.write('{:>02} {}\n'.format(i, ' '.join(vals)))
+
+    @staticmethod
+    def get_cnts_levels_depths_recs(recs):
+        """Collect counts of levels and depths in a Group of GO Terms."""
+        cnts = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
+        for rec in recs:
+            if not rec.is_obsolete:
+                cnts['level'][rec.level][rec.namespace] += 1
+                cnts['depth'][rec.depth][rec.namespace] += 1
+        return cnts
+
+    @staticmethod
+    def id2int(GO_id):
+        return int(GO_id.replace("GO:", "", 1))
 
     def query_term(self, term, verbose=True):
         """

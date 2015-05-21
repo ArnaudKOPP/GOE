@@ -27,4 +27,4 @@ enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/HDV/DATA/
 result = enrichment.to_dataframe()
 df = pd.DataFrame(result)
 print(df.head())
-df.to_csv(path_or_buf='/home/arnaud/Desktop/HDV/DATA/GO_enrichement/GO_enrichment_8.csv', index=False)
+# df.to_csv(path_or_buf='/home/arnaud/Desktop/HDV/DATA/GO_enrichement/GO_enrichment_8.csv', index=False)
