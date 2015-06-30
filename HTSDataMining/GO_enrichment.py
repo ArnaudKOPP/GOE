@@ -46,9 +46,9 @@ class OBOreader(object):
         if not line.startswith(term_tag):
             self.read_until(self._handle, term_tag)
         while 1:
-            yield self.next()
+            yield self.__next__()
 
-    def next(self):
+    def __next__(self):
         """
 
         :return: :raise StopIteration:
@@ -60,7 +60,7 @@ class OBOreader(object):
 
         # read until the next tag and save everything in between
         while 1:
-            pos = self._handle.tell()  # save current postion for roll-back
+            pos = self._handle.tell()  # save current position for roll-back
             line = self._handle.readline()
             if not line or (line.startswith(typedef_tag)
                             or line.startswith(term_tag)):
@@ -132,8 +132,8 @@ class GOTerm(object):
 
     def __str__(self):
         obsolete = "obsolete" if self.is_obsolete else ""
-        return "%s\tlevel-%02d\tdepth-%02d\t%s [%s] %s" % (self.id, self.level, self.depth,
-                                                           self.name, self.namespace, obsolete)
+        return "%s\tlevel-%02d\tdepth-%02d\t%s [%s] %s" % (self.id, self.level, self.depth, self.name, self.namespace,
+                                                           obsolete)
 
     def __repr__(self):
         return "GOTerm('%s')" % self.id
@@ -204,10 +204,8 @@ class GOTerm(object):
             all_child_edges |= p.get_all_child_edges()
         return all_child_edges
 
-    def write_hier_rec(self, gos_printed, out=sys.stdout,
-                       len_dash=1, max_depth=None, num_child=None, short_prt=False,
-                       include_only=None, go_marks=None,
-                       depth=1, dp="-"):
+    def write_hier_rec(self, gos_printed, out=sys.stdout, len_dash=1, max_depth=None, num_child=None, short_prt=False,
+                       include_only=None, go_marks=None, depth=1, dp="-"):
         """Write hierarchy for a GO Term record."""
         GO_id = self.id
         # Shortens hierarchy report by only printing the hierarchy
@@ -237,8 +235,7 @@ class GOTerm(object):
         if max_depth is not None and depth > max_depth:
             return
         for p in self.children:
-            p.write_hier_rec(gos_printed, out, len_dash, max_depth, num_child, short_prt,
-                             include_only, go_marks,
+            p.write_hier_rec(gos_printed, out, len_dash, max_depth, num_child, short_prt, include_only, go_marks,
                              depth, dp)
 
 
@@ -318,33 +315,41 @@ class GOtree(object):
         for rec_id, rec in sorted(self.go_Term.items()):
             print(rec, file=out)
 
-    def write_hier_all(self, out=sys.stdout,
-                       len_dash=1, max_depth=None, num_child=None, short_prt=False):
-        """Write hierarchy for all GO Terms in obo file."""
+    def write_hier_all(self, out=sys.stdout, len_dash=1, max_depth=None, num_child=None, short_prt=False):
+        """
+        Write hierarchy for all GO Terms in obo file.
+        """
         # Print: [biological_process, molecular_function, and cellular_component]
         for go_id in ['GO:0008150', 'GO:0003674', 'GO:0005575']:
             self.write_hier(go_id, out, len_dash, max_depth, num_child, short_prt, None)
 
-    def write_hier(self, GO_id, out=sys.stdout,
-                   len_dash=1, max_depth=None, num_child=None, short_prt=False,
+    def write_hier(self, GO_id, out=sys.stdout, len_dash=1, max_depth=None, num_child=None, short_prt=False,
                    include_only=None, go_marks=None):
-        """Write hierarchy for a GO Term."""
+        """
+        Write hierarchy for a GO Term.
+        """
         gos_printed = set()
-        self.go_Term[GO_id].write_hier_rec(gos_printed, out, len_dash, max_depth, num_child,
-                                           short_prt, include_only, go_marks)
+        self.go_Term[GO_id].write_hier_rec(gos_printed, out, len_dash, max_depth, num_child, short_prt, include_only,
+                                           go_marks)
 
     def write_summary_cnts(self, GO_ids, out=sys.stdout):
-        """Write summary of level and depth counts for specific GO ids."""
+        """
+        Write summary of level and depth counts for specific GO ids.
+        """
         cnts = self.get_cnts_levels_depths_recs([self.go_Term[GO] for GO in GO_ids])
         self._write_summary_cnts(cnts, out)
 
     def write_summary_cnts_all(self, out=sys.stdout):
-        """Write summary of level and depth counts for all active GO Terms."""
+        """
+        Write summary of level and depth counts for all active GO Terms.
+        """
         cnts = self.get_cnts_levels_depths_recs(set(self.go_Term.values()))
         self._write_summary_cnts(cnts, out)
 
     def _write_summary_cnts(self, cnts, out=sys.stdout):
-        """Write summary of level and depth counts for active GO Terms."""
+        """
+        Write summary of level and depth counts for active GO Terms.
+        """
         # Count level(shortest path to root) and depth(longest path to root)
         # values for all unique GO Terms.
         max_val = max(max(dep for dep in cnts['depth']),
@@ -359,7 +364,9 @@ class GOtree(object):
 
     @staticmethod
     def get_cnts_levels_depths_recs(recs):
-        """Collect counts of levels and depths in a Group of GO Terms."""
+        """
+        Collect counts of levels and depths in a Group of GO Terms.
+        """
         cnts = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
         for rec in recs:
             if not rec.is_obsolete:
@@ -379,7 +386,7 @@ class GOtree(object):
         :return:
         """
         if term not in self.go_Term:
-            print("Term %s not found! ", term)
+            log.error("Term {} not found!".format(term))
             return
 
         rec = self.go_Term[term]
@@ -396,7 +403,7 @@ class GOtree(object):
         :return:
         """
         if term not in self.go_Term:
-            print("Term %s not found!", term)
+            log.error("Term {} not found!".format(term))
             return
 
         def _paths_to_top_recursive(rec):
@@ -433,7 +440,7 @@ class GOtree(object):
                     bad_terms.add(term)
             terms.update(parents)
         if bad_terms:
-            print("terms not found: ", bad_terms)
+            log.info("terms not found: {}".format(bad_terms))
 
     def __str__(self):
         return repr(self.go_Term)
