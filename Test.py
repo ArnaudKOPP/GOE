@@ -5,7 +5,7 @@ For testing module in actual dev
 """
 import numpy as np
 import pandas as pd
-import HTSDataMining
+import GOE
 import logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)-8s %(message)s',
                     datefmt='%m/%d/%Y %I:%M:%S %p')
@@ -19,7 +19,7 @@ np.set_printoptions(suppress=True, precision=4)
 """
 Go Enrichment testing
 """
-enrichment = HTSDataMining.EnrichmentStudy(study="/home/arnaud/Desktop/HDV/DATA/GO_enrichement/study.txt",
+enrichment = GOE.EnrichmentStudy(study="/home/arnaud/Desktop/HDV/DATA/GO_enrichement/study.txt",
                                            pop="/home/arnaud/Desktop/HDV/DATA/GO_enrichement/pop8.txt",
                                            assoc="/home/arnaud/Desktop/TEMP/asso_gene_genome_goid.csv",
                                            compare=False,

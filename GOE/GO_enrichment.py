@@ -17,8 +17,8 @@ import numpy as np
 import scipy.stats
 import pandas as pd
 import urllib.request
-from HTSDataMining.utils import reporthook
-from HTSDataMining.stat import adjustpvalues
+from GOE.utils import reporthook
+from GOE.stat import adjustpvalues
 import logging
 
 log = logging.getLogger(__name__)
