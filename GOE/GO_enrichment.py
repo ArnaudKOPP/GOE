@@ -13,18 +13,17 @@ __status__ = "Production"
 
 import collections
 import sys
+import os
 import numpy as np
 import scipy.stats
 import pandas as pd
 import urllib.request
 from GOE.utils import reporthook
 from GOE.stat import adjustpvalues
+import re
 import logging
 
 log = logging.getLogger(__name__)
-
-typedef_tag, term_tag = "[Typedef]", "[Term]"
-
 
 class OBOreader(object):
     """
@@ -32,85 +31,87 @@ class OBOreader(object):
     """
 
     def __init__(self, obo_file="go.obo"):
-        try:
-            self._handle = open(obo_file)
-        except IOError:
+        if os.path.isfile(obo_file):
+            self._handle = obo_file
+        else:
             log.info("Download ontologies")
             urllib.request.urlretrieve(
                 "http://geneontology.org/ontology/go.obo", "go.obo", reporthook)
             print('')  # add this for begin @ new line (it's ugly)
-            self._handle = open(obo_file)
+            self._handle = obo_file
 
     def __iter__(self):
-        line = self._handle.readline()
-        if not line.startswith(term_tag):
-            self.read_until(self._handle, term_tag)
-        while 1:
-            yield self.__next__()
+        """Return one GO Term record at a time from an obo file."""
+        # Wait to open file until needed. Automatically close file when done.
+        with open(self._handle) as fstream:
+            rec_curr = None # Stores current GO Term
+            for lnum, line in enumerate(fstream):
+                # obo lines start with any of: [Term], [Typedef], /^\S+:/, or /^\s*/
+                if line[0:6] == "[Term]":
+                    rec_curr = self._init_goterm_ref(rec_curr, "Term", lnum)
+                elif line[0:9] == "[Typedef]":
+                    pass # Original OBOReader did not store these
+                elif rec_curr is not None:
+                    line = line.rstrip() # chomp
+                    if ":" in line:
+                        self._add_to_ref(rec_curr, line, lnum)
+                    elif line == "":
+                        if rec_curr is not None:
+                            yield rec_curr
+                            rec_curr = None
+                    else:
+                        self._die("UNEXPECTED LINE CONTENT: {L}".format(L=line), lnum)
+            # Return last record, if necessary
+            if rec_curr is not None:
+                yield rec_curr
 
-    def __next__(self):
-        """
+    def _init_goterm_ref(self, rec_curr, name, lnum):
+        """Initialize new reference and perform checks."""
+        if rec_curr is None:
+            return GOTerm()
+        msg = "PREVIOUS {REC} WAS NOT TERMINATED AS EXPECTED".format(REC=name)
+        self._die(msg, lnum)
 
-        :return: :raise StopIteration:
-        """
-        lines = []
-        line = self._handle.readline()
-        if not line or line.startswith(typedef_tag):
-            raise StopIteration
+    def _add_to_ref(self, rec_curr, line, lnum):
+        """Add new fields to the current reference."""
+        # Examples of record lines containing ':' include:
+        #   id: GO:0000002
+        #   name: mitochondrial genome maintenance
+        #   namespace: biological_process
+        #   def: "The maintenance of ...
+        #   is_a: GO:0007005 ! mitochondrion organization
+        mtch = re.match(r'^(\S+):\s*(\S.*)$', line)
+        if mtch:
+            field_name = mtch.group(1)
+            field_value = mtch.group(2)
+            if field_name == "id":
+                self._chk_none(rec_curr.id, lnum)
+                rec_curr.id = field_value
+            if field_name == "alt_id":
+                rec_curr.alt_ids.append(field_value)
+            elif field_name == "name":
+                self._chk_none(rec_curr.name, lnum)
+                rec_curr.name = field_value
+            elif field_name == "namespace":
+                self._chk_none(rec_curr.namespace, lnum)
+                rec_curr.namespace = field_value
+            elif field_name == "is_a":
+                rec_curr._parents.append(field_value.split()[0])
+            elif field_name == "is_obsolete" and field_value == "true":
+                rec_curr.is_obsolete = True
+        else:
+            self._die("UNEXPECTED FIELD CONTENT: {L}\n".format(L=line), lnum)
 
-        # read until the next tag and save everything in between
-        while 1:
-            pos = self._handle.tell()  # save current position for roll-back
-            line = self._handle.readline()
-            if not line or (line.startswith(typedef_tag)
-                            or line.startswith(term_tag)):
-                self._handle.seek(pos)  # roll-back
-                break
-            lines.append(line)
+    def _die(self, msg, lnum):
+        """Raise an Exception if file read is unexpected."""
+        raise Exception("**FATAL {FILE}({LNUM}): {MSG}\n".format(
+            FILE=self._handle, LNUM=lnum, MSG=msg))
 
-        rec = GOTerm()
-        for line in lines:
-            if line.startswith("id:"):
-                rec.id = self.after_colon(line)
-            if line.startswith("alt_id:"):
-                rec.alt_ids.append(self.after_colon(line))
-            elif line.startswith("name:"):
-                rec.name = self.after_colon(line)
-            elif line.startswith("namespace:"):
-                rec.namespace = self.after_colon(line)
-            elif line.startswith("is_a:"):
-                rec.parents.append(self.after_colon(line).split()[0])
-            elif line.startswith("is_obsolete:") and self.after_colon(line) == "true":
-                rec.is_obsolete = True
-
-        return rec
-
-    @staticmethod
-    def after_colon(line):
-        """
-        macro for getting anything after the :
-        :param line:
-        :return:
-        """
-        return line.split(":", 1)[1].strip()
-
-    @staticmethod
-    def read_until(handle, start):
-        """
-        read each line until it has a certain start, and then puts the start tag back
-        :param handle:
-        :param start:
-        :return:
-        """
-        while 1:
-            pos = handle.tell()
-            line = handle.readline()
-            if not line:
-                break
-            if line.startswith(start):
-                handle.seek(pos)
-                return
-        raise EOFError("%s tag cannot be found" % start)
+    def _chk_none(self, init_val, lnum):
+        """Expect these lines to be uninitialized."""
+        if init_val is None or init_val is "":
+            return
+        self._die("FIELD IS ALREADY INITIALIZED", lnum)
 
 
 class GOTerm(object):
@@ -565,6 +566,7 @@ class EnrichmentStudy(object):
         run all
         :return:
         """
+        log.info("Start go enrichement")
         for term, study_count in self.term_study.items():
             pop_count = self.term_pop[term]
             p = scipy.stats.fisher_exact(([[study_count, self.study_n], [pop_count, self.pop_n]]))
@@ -581,6 +583,7 @@ class EnrichmentStudy(object):
             # get go term for description and level
             rec.find_goterm(self.go_tree)
 
+        log.info("Finished")
         return self.results
 
     def to_dataframe(self):
