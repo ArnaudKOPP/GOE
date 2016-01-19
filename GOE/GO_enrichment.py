@@ -592,25 +592,21 @@ class EnrichmentStudy(object):
         :return:
         """
         size = len(self.results)
-        dataframe = np.zeros(size, dtype=[('ID', object), ('ratio_in_study', object), ('ratio_in_pop', object),
-                                          ('Fischer Test OddsRation', object), ('Fischer Test P-value', object),
-                                          ('FDR (BH)', object), ('BY', object), ('holm', object), ('hochberg', object),
-                                          ('Description', object)])
+        dataframe = pd.DataFrame(np.zeros(size, dtype=[('ID', object), ('Ratio in study', object), ('Ratio in pop', object),
+                                          ('Fischer Test OddsRatio', object), ('Fischer Test P-value', object),
+                                          ('FDR (BH)', object), ('Description', object)]))
         i = 0
         # # pretty ugly -> need to be more pythonic !!
         for record in self.results:
             assert isinstance(record, GOEnrichmentRecord)
-            dataframe["ID"][i] = record.id
-            dataframe["ratio_in_study"][i] = "%d/%d" % record.ratio_in_study
-            dataframe["ratio_in_pop"][i] = "%d/%d" % record.ratio_in_pop
-            dataframe["Fischer Test OddsRation"][i] = "%.3g" % record.p_uncorrected[0]
-            dataframe["Fischer Test P-value"][i] = "%.3g" % record.p_uncorrected[1]
-            dataframe["Description"][i] = record.description
+            dataframe.loc[i, "ID"] = record.id
+            dataframe.loc[i, "Ratio in study"] = "%d/%d" % record.ratio_in_study
+            dataframe.loc[i, "Ratio in pop"] = "%d/%d" % record.ratio_in_pop
+            dataframe.loc[i, "Fischer Test OddsRatio"] = "%.3g" % record.p_uncorrected[0]
+            dataframe.loc[i, "Fischer Test P-value"] = "%.3g" % record.p_uncorrected[1]
+            dataframe.loc[i, "Description"] = record.description
             i += 1
-        dataframe["holm"] = adjustpvalues(pvalues=dataframe["Fischer Test P-value"], method='holm')
-        dataframe["hochberg"] = adjustpvalues(pvalues=dataframe["Fischer Test P-value"], method='hochberg')
         dataframe["FDR (BH)"] = adjustpvalues(pvalues=dataframe["Fischer Test P-value"])
-        dataframe["BY"] = adjustpvalues(pvalues=dataframe["Fischer Test P-value"], method='BY')
 
         return dataframe
 
